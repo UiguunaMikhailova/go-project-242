@@ -17,38 +17,37 @@ const (
 	EB = 1024 * PB
 )
 
-func GetSize(path string, human bool, all bool, recursive bool) (string, error) {
+func GetPathSize(path string, all bool, recursive bool) (int64, error) {
 	fileInfo, err := os.Lstat(path)
 	if err != nil {
-		return "", errors.New(err.Error())
+		return 0, errors.New(err.Error())
 	}
 
 	isDir := fileInfo.IsDir()
 
-	errHidden := checkHidden(fileInfo.Name(), all, isDir)
-	if errHidden != nil {
-		return "", errors.New(errHidden.Error())
+	if err := checkHidden(fileInfo.Name(), all, isDir); err != nil {
+		return 0, err
 	}
 
-	if isDir {
-		return dirSize(path, human, all, recursive)
+	if !isDir {
+		return fileInfo.Size(), nil
 	}
 
-	return formatSize(fileInfo.Size(), human), nil
-}
-
-func dirSize(path string, human, all bool, recursive bool) (string, error) {
 	files, err := os.ReadDir(path)
 	if err != nil {
-		return "", errors.New(err.Error())
+		return 0, errors.New(err.Error())
 	}
 
-	sumSize, err := getFilesSize(files, path, all, recursive)
+	return getFilesSize(files, path, all, recursive)
+}
+
+func GetSize(path string, human bool, all bool, recursive bool) (string, error) {
+	size, err := GetPathSize(path, all, recursive)
 	if err != nil {
-		return "", errors.New(err.Error())
+		return "", err
 	}
 
-	return formatSize(sumSize, human), nil
+	return formatSize(size, human), nil
 }
 
 func getFilesSize(files []os.DirEntry, path string, all bool, recursive bool) (int64, error) {
