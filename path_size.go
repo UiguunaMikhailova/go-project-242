@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -16,13 +17,11 @@ const (
 	EB = 1024 * PB
 )
 
-func GetSize(path string, human bool, all bool) (string, error) {
+func GetSize(path string, human bool, all bool, recursive bool) (string, error) {
 	fileInfo, err := os.Lstat(path)
 	if err != nil {
 		return "", errors.New(err.Error())
 	}
-
-	fmt.Println("FileInfo: ", fileInfo.Name(), fileInfo.Size(), fileInfo.IsDir())
 
 	isDir := fileInfo.IsDir()
 
@@ -32,37 +31,68 @@ func GetSize(path string, human bool, all bool) (string, error) {
 	}
 
 	if isDir {
-		return dirSize(path, human, all)
+		return dirSize(path, human, all, recursive)
 	}
 
 	return formatSize(fileInfo.Size(), human), nil
 }
 
-func dirSize(path string, human, all bool) (string, error) {
+func dirSize(path string, human, all bool, recursive bool) (string, error) {
 	files, err := os.ReadDir(path)
 	if err != nil {
 		return "", errors.New(err.Error())
 	}
 
+	sumSize, err := getFilesSize(files, path, all, recursive)
+	if err != nil {
+		return "", errors.New(err.Error())
+	}
+
+	return formatSize(sumSize, human), nil
+}
+
+func getFilesSize(files []os.DirEntry, path string, all bool, recursive bool) (int64, error) {
 	sumSize := int64(0)
 
 	for _, file := range files {
-		fileInfo, err := os.Lstat(path + "/" + file.Name())
-		if err != nil {
-			return "", errors.New(err.Error())
+		if file.IsDir() {
+			if !recursive {
+				continue
+			}
+
+			if err := checkHidden(file.Name(), all, true); err != nil {
+				continue
+			}
+
+			subPath := filepath.Join(path, file.Name())
+
+			subFiles, err := os.ReadDir(subPath)
+			if err != nil {
+				return 0, errors.New(err.Error())
+			}
+
+			subSize, err := getFilesSize(subFiles, subPath, all, recursive)
+			if err != nil {
+				return 0, errors.New(err.Error())
+			}
+
+			sumSize += subSize
+			continue
 		}
 
-		fmt.Println("File in dir: ", file.Name())
+		fileInfo, err := os.Lstat(filepath.Join(path, file.Name()))
+		if err != nil {
+			return 0, errors.New(err.Error())
+		}
 
-		errHidden := checkHidden(fileInfo.Name(), all, true)
-		if errHidden != nil {
+		if err := checkHidden(fileInfo.Name(), all, false); err != nil {
 			continue
 		}
 
 		sumSize += fileInfo.Size()
 	}
 
-	return formatSize(sumSize, human), nil
+	return sumSize, nil
 }
 
 func formatSize(size int64, human bool) string {

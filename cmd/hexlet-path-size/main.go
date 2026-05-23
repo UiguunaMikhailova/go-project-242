@@ -13,7 +13,7 @@ import (
 func main() {
 	cmd := &cli.Command{
 		Name:   "hexlet-path-size - print size of a file or directory",
-		Usage:  "hexlet-path-size [global options]",
+		Usage:  "hexlet-path-size [global options] <path>",
 		Flags:  flags,
 		Action: action,
 	}
@@ -24,6 +24,12 @@ func main() {
 }
 
 var flags = []cli.Flag{
+	&cli.BoolFlag{
+		Name:    "recursive",
+		Aliases: []string{"r"},
+		Value:   false,
+		Usage:   "recursive size of directories",
+	},
 	&cli.BoolFlag{
 		Name:    "human",
 		Aliases: []string{"H"},
@@ -40,32 +46,15 @@ var flags = []cli.Flag{
 
 func action(_ context.Context, cmd *cli.Command) error {
 	path := cmd.Args().Get(0)
+	recursive := cmd.Bool("recursive")
 	human := cmd.Bool("human")
 	all := cmd.Bool("all")
 
-	print(path, human, all)
-
-	size, err := code.GetSize(path, human, all)
+	size, err := code.GetSize(path, human, all, recursive)
 	if err != nil {
 		fmt.Println("Error: ", err)
 	}
 
 	fmt.Printf("%s\t%s", size, path)
 	return nil
-}
-
-func print(path string, human, all bool) {
-	fmt.Println("Path: ", path)
-
-	if human {
-		fmt.Println("Human: ", human)
-	} else {
-		fmt.Println("Not human: ", human)
-	}
-
-	if all {
-		fmt.Println("All: ", all)
-	} else {
-		fmt.Println("Not all: ", all)
-	}
 }
