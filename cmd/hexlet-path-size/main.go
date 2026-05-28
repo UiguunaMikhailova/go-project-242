@@ -52,9 +52,9 @@ func action(_ context.Context, cmd *cli.Command) error {
 
 	size, err := code.GetSize(path, human, all, recursive)
 	if err != nil {
-		fmt.Println("error: ", err)
+		return err
 	}
 
-	fmt.Printf("%s\t%s", size, path)
+	fmt.Printf("%s\t%s\n", size, path)
 	return nil
 }
