@@ -17,7 +17,7 @@ const (
 	EB = 1024 * PB
 )
 
-func GetPathSize(path string, all bool, recursive bool) (int64, error) {
+func GetPathSize(path string, human bool, all bool, recursive bool) (int64, error) {
 	fileInfo, err := os.Lstat(path)
 	if err != nil {
 		return 0, errors.New(err.Error())
@@ -42,7 +42,7 @@ func GetPathSize(path string, all bool, recursive bool) (int64, error) {
 }
 
 func GetSize(path string, human bool, all bool, recursive bool) (string, error) {
-	size, err := GetPathSize(path, all, recursive)
+	size, err := GetPathSize(path, human, all, recursive)
 	if err != nil {
 		return "", err
 	}
