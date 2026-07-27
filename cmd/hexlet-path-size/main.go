@@ -12,36 +12,36 @@ import (
 
 func main() {
 	cmd := &cli.Command{
-		Name:   "hexlet-path-size - print size of a file or directory",
-		Usage:  "hexlet-path-size [global options] <path>",
-		Flags:  flags,
+		Name:      "hexlet-path-size",
+		Usage:     "print size of a file or directory",
+		ArgsUsage: "<path>",
+		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:    "recursive",
+				Aliases: []string{"r"},
+				Value:   false,
+				Usage:   "recursive size of directories",
+			},
+			&cli.BoolFlag{
+				Name:    "human",
+				Aliases: []string{"H"},
+				Value:   false,
+				Usage:   "human-readable sizes (auto-select unit)",
+			},
+			&cli.BoolFlag{
+				Name:    "all",
+				Aliases: []string{"a"},
+				Value:   false,
+				Usage:   "include hidden files and directories",
+			},
+		},
 		Action: action,
 	}
 
 	if err := cmd.Run(context.Background(), os.Args); err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
-}
-
-var flags = []cli.Flag{
-	&cli.BoolFlag{
-		Name:    "recursive",
-		Aliases: []string{"r"},
-		Value:   false,
-		Usage:   "recursive size of directories",
-	},
-	&cli.BoolFlag{
-		Name:    "human",
-		Aliases: []string{"H"},
-		Value:   false,
-		Usage:   "human-readable sizes (auto-select unit)",
-	},
-	&cli.BoolFlag{
-		Name:    "all",
-		Aliases: []string{"a"},
-		Value:   false,
-		Usage:   "include hidden files and directories",
-	},
 }
 
 func action(_ context.Context, cmd *cli.Command) error {
