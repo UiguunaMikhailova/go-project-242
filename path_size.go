@@ -1,95 +1,75 @@
 package code
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
-const (
-	KB = 1024
-	MB = 1024 * KB
-	GB = 1024 * MB
-	TB = 1024 * GB
-	PB = 1024 * TB
-	EB = 1024 * PB
-)
-
+// GetPathSize returns the size of the file or directory at path.
+//
+// For a directory the sizes of its entries are summed; nested directories are
+// traversed only when recursive is set. When human is set the size is rendered
+// in readable form ("7.8KB"), otherwise in bytes ("8000B"). The all flag affects
+// only the traversal of contents: hidden entries (names starting with a dot) are
+// counted only when all is set, but path itself is always measured, even if it
+// is hidden.
+//
+// An error is returned only if path itself cannot be read.
 func GetPathSize(path string, recursive bool, human bool, all bool) (string, error) {
 	fileInfo, err := os.Lstat(path)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error processing %s: %w", path, err)
 	}
 
-	isDir := fileInfo.IsDir()
-
-	if err := checkHidden(fileInfo.Name(), all, isDir); err != nil {
-		return "", err
-	}
-
-	if !isDir {
+	if !fileInfo.IsDir() {
 		return formatSize(fileInfo.Size(), human), nil
 	}
 
 	files, err := os.ReadDir(path)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error processing %s: %w", path, err)
 	}
 
-	size, err := getFilesSize(files, path, all, recursive)
-	if err != nil {
-		return "", err
-	}
-
-	return formatSize(size, human), nil
+	return formatSize(getFilesSize(files, path, all, recursive), human), nil
 }
 
-func GetSize(path string, human bool, all bool, recursive bool) (string, error) {
-	return GetPathSize(path, recursive, human, all)
-}
-
-func getFilesSize(files []os.DirEntry, path string, all bool, recursive bool) (int64, error) {
+func getFilesSize(files []os.DirEntry, path string, all bool, recursive bool) int64 {
 	sumSize := int64(0)
 
 	for _, file := range files {
-		isDir := file.IsDir()
-
-		if err := checkHidden(file.Name(), all, isDir); err != nil {
+		if !all && isHidden(file.Name()) {
 			continue
 		}
 
-		if isDir {
+		subPath := filepath.Join(path, file.Name())
+
+		if file.IsDir() {
 			if !recursive {
 				continue
 			}
 
-			subPath := filepath.Join(path, file.Name())
-
 			subFiles, err := os.ReadDir(subPath)
 			if err != nil {
-				return 0, err
+				fmt.Fprintf(os.Stderr, "warning: can't read %s: %v\n", subPath, err)
+				continue
 			}
 
-			subSize, err := getFilesSize(subFiles, subPath, all, recursive)
-			if err != nil {
-				return 0, err
-			}
-
-			sumSize += subSize
+			sumSize += getFilesSize(subFiles, subPath, all, recursive)
 			continue
 		}
 
-		fileInfo, err := os.Lstat(filepath.Join(path, file.Name()))
+		fileInfo, err := os.Lstat(subPath)
 		if err != nil {
-			return 0, err
+			fmt.Fprintf(os.Stderr, "warning: can't stat %s: %v\n", subPath, err)
+			continue
 		}
 
 		sumSize += fileInfo.Size()
 	}
 
-	return sumSize, nil
+	return sumSize
 }
 
 func formatSize(size int64, human bool) string {
@@ -97,34 +77,35 @@ func formatSize(size int64, human bool) string {
 		return fmt.Sprintf("%dB", size)
 	}
 
+	const (
+		kb = 1024
+		mb = 1024 * kb
+		gb = 1024 * mb
+		tb = 1024 * gb
+		pb = 1024 * tb
+		eb = 1024 * pb
+	)
+
 	s := float64(size)
 
 	switch {
-	case size < KB:
+	case size < kb:
 		return fmt.Sprintf("%dB", size)
-	case size < MB:
-		return fmt.Sprintf("%.1fKB", s/KB)
-	case size < GB:
-		return fmt.Sprintf("%.1fMB", s/MB)
-	case size < TB:
-		return fmt.Sprintf("%.1fGB", s/GB)
-	case size < PB:
-		return fmt.Sprintf("%.1fTB", s/TB)
-	case size < EB:
-		return fmt.Sprintf("%.1fPB", s/PB)
+	case size < mb:
+		return fmt.Sprintf("%.1fKB", s/kb)
+	case size < gb:
+		return fmt.Sprintf("%.1fMB", s/mb)
+	case size < tb:
+		return fmt.Sprintf("%.1fGB", s/gb)
+	case size < pb:
+		return fmt.Sprintf("%.1fTB", s/tb)
+	case size < eb:
+		return fmt.Sprintf("%.1fPB", s/pb)
 	default:
-		return fmt.Sprintf("%.1fEB", s/EB)
+		return fmt.Sprintf("%.1fEB", s/eb)
 	}
 }
 
-func checkHidden(path string, all bool, isDir bool) error {
-	if !all && strings.HasPrefix(path, ".") {
-		errorText := "hidden file"
-		if isDir {
-			errorText = "hidden directory"
-		}
-		return errors.New(errorText)
-	}
-
-	return nil
+func isHidden(name string) bool {
+	return strings.HasPrefix(name, ".")
 }

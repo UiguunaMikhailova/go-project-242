@@ -50,7 +50,7 @@ func action(_ context.Context, cmd *cli.Command) error {
 	human := cmd.Bool("human")
 	all := cmd.Bool("all")
 
-	size, err := code.GetSize(path, human, all, recursive)
+	size, err := code.GetPathSize(path, recursive, human, all)
 	if err != nil {
 		return err
 	}
